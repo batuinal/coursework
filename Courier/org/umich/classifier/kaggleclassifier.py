@@ -23,7 +23,7 @@ pronoun_count_feature = 'pronouncount'
 
 def main(test_dir, train_dir, label_file):
     filenames, y = read_data(train_dir, label_file)
-    
+
     skf = StratifiedKFold(y, n_folds=5)
     # split data into 5 sets of train/test data
     for train_index, test_index in skf:
@@ -34,22 +34,23 @@ def main(test_dir, train_dir, label_file):
         f_test = filenames[test_index]
         y_test = y[test_index]
         
-        features, classifier = train(train_dir, f_train, y_train)
-        test(train_dir, f_test, y_test, classifier, features)
+        features, classifier = train(f_train, y_train)
+        test(f_test, y_test, classifier, features)
 
 def read_data(dirname, label_file):
-    _, _, files = os.walk(train_dir)
-    filenames = [file for file in sublist for sublist in files]
+    filenames = []
+    for path, _, files in os.walk(dirname):
+        filenames += [os.path.join(path, file) for file in files]
+    filenames = sorted(filenames)
+    labels = numpy.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == 1 else -1})
 
-    labels = np.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == 1 else -1})
-
-    return filenames, labels
+    return numpy.array(filenames), labels
     
-def train(dirname, f_train, y_train):
+def train(f_train, y_train):
     global my_tokenizer, mix_label, joke_label
     inverted_index = defaultdict(dict)
     for train_file in f_train:
-        with open(dirname+train_file) as f:
+        with open(train_file) as f:
             docId = getDocId(train_file)
             doc_content = f.read()
             indexDocument(doc_content, docId, inverted_index)
@@ -72,14 +73,14 @@ def train(dirname, f_train, y_train):
     classifier.fit(designMatrix, y_train)
     return features, classifier
 
-def test(dirname, f_test, y_test, classifier, features):
+def test(f_test, y_test, classifier, features):
     global my_tokenizer, mix_label, joke_label
 #    output = open('test_results_lr.csv', 'w')
 #    output.write('File,Class\n')
 #    print('File,Class')
     y_predicted = []
     for test_file in f_test:
-        with open(dirname+test_file) as f:
+        with open(test_file) as f:
             doc_content = f.read()
             text_length, punctuation_count, non_punctuation_count,  = my_tokenizer.getFeatures(doc_content)
             tokens = my_tokenizer.getTokens(doc_content)
@@ -104,8 +105,9 @@ def test(dirname, f_test, y_test, classifier, features):
 #            output.write("%s\n" % row)
 #    output.close    
 
-def getDocId(doc_file_name):    
-    return int(re.sub('^[a-z]+.', '', doc_file_name).lstrip('0'))
+def getDocId(doc_file_name):
+    mid = re.sub('^[A-Za-z]+.', '', os.path.basename(doc_file_name)).lstrip('0')
+    return int(re.sub('.html$', '', mid))
  
 def getDesignMatrix(inverted_index, features, documents): 
     design_matrix = numpy.zeros((len(documents), len(features)))
@@ -136,4 +138,4 @@ def indexDocument(document_content, doc_id, inverted_index):
     return inverted_index
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2])
+    main(sys.argv[1], sys.argv[2], sys.argv[3])
