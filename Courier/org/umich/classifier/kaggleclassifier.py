@@ -21,9 +21,13 @@ non_punctuation_count_feature = 'nonpunctuationcount'
 doc_length_feature = 'doclength'
 pronoun_count_feature = 'pronouncount'
 
-def main(test_dir, train_dir, label_file):
-    filenames, y = read_data(train_dir, label_file)
+def main(test_dir, train_dir, test_labels, train_labels):
+    train_files, y_train = read_data(train_dir, train_labels)
+    test_files, y_test = read_data(test_dir, test_labels)
 
+    features, classifier = train(train_files, y_train)
+    test(test_files, y_test, classifier, features)
+    """
     skf = StratifiedKFold(y, n_folds=5)
     # split data into 5 sets of train/test data
     for train_index, test_index in skf:
@@ -39,7 +43,8 @@ def main(test_dir, train_dir, label_file):
         features, classifier = train(f_train, y_train)
         print 'Testing fold'
         test(f_test, y_test, classifier, features)
-
+    """
+    
 def read_data(dirname, label_file):
     filenames = []
     for path, _, files in os.walk(dirname):
@@ -50,6 +55,7 @@ def read_data(dirname, label_file):
     return numpy.array(filenames), labels
     
 def train(f_train, y_train):
+    print 'Training'
     global my_tokenizer, mix_label, joke_label
     inverted_index = defaultdict(dict)
     for train_file in f_train:
@@ -77,10 +83,8 @@ def train(f_train, y_train):
     return features, classifier
 
 def test(f_test, y_test, classifier, features):
+    print 'Testing'
     global my_tokenizer, mix_label, joke_label
-#    output = open('test_results_lr.csv', 'w')
-#    output.write('File,Class\n')
-#    print('File,Class')
     y_predicted = []
     for test_file in f_test:
         with open(test_file) as f:
@@ -102,14 +106,9 @@ def test(f_test, y_test, classifier, features):
 
     # calc and print accuracy score of the prediction
     print 'accuracy: {0}'.format(metrics.accuracy_score(y_test, y_predicted))
-#            predicted_class = 'joke' if predicted_label == joke_label else 'mix'
-#            row = test_file + ',' + str(predicted_class) 
-#            print row       
-#            output.write("%s\n" % row)
-#    output.close    
 
 def getDocId(doc_file_name):
-    mid = re.sub('^[A-Za-z]+.', '', os.path.basename(doc_file_name)).lstrip('0')
+    mid = re.sub('^[A-Za-z\-]+', '', os.path.basename(doc_file_name)).lstrip('0')
     return int(re.sub('.html$', '', mid))
  
 def getDesignMatrix(inverted_index, features, documents): 
@@ -142,4 +141,4 @@ def indexDocument(document_content, doc_id, inverted_index):
     return inverted_index
 
 if __name__ == '__main__':
-    main(sys.argv[1], sys.argv[2], sys.argv[3])
+    main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
