@@ -27,14 +27,17 @@ def main(test_dir, train_dir, label_file):
     skf = StratifiedKFold(y, n_folds=5)
     # split data into 5 sets of train/test data
     for train_index, test_index in skf:
+        print 'Starting fold'
         # filenames to train on
         f_train = filenames[train_index]
         y_train = y[train_index]
-
+        
         f_test = filenames[test_index]
         y_test = y[test_index]
-        
+
+        print 'Training fold'
         features, classifier = train(f_train, y_train)
+        print 'Testing fold'
         test(f_test, y_test, classifier, features)
 
 def read_data(dirname, label_file):
@@ -42,7 +45,7 @@ def read_data(dirname, label_file):
     for path, _, files in os.walk(dirname):
         filenames += [os.path.join(path, file) for file in files]
     filenames = sorted(filenames)
-    labels = numpy.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == 1 else -1})
+    labels = numpy.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == '1' else -1})
 
     return numpy.array(filenames), labels
     
@@ -55,7 +58,7 @@ def train(f_train, y_train):
             doc_content = f.read()
             indexDocument(doc_content, docId, inverted_index)
     features = getFeatures(inverted_index)
-    designMatrix = getDesignMatrix(inverted_index, features, train_files)
+    designMatrix = getDesignMatrix(inverted_index, features, f_train)
 
     """
     train_labels = numpy.zeros(len(train_files)) 
@@ -98,7 +101,7 @@ def test(f_test, y_test, classifier, features):
             y_predicted.append(int(classifier.predict(feature)[0]))
 
     # calc and print accuracy score of the prediction
-    print metrics.accuracy_score(y_test, y_predicted)
+    print 'accuracy: {0}'.format(metrics.accuracy_score(y_test, y_predicted))
 #            predicted_class = 'joke' if predicted_label == joke_label else 'mix'
 #            row = test_file + ',' + str(predicted_class) 
 #            print row       
@@ -111,11 +114,12 @@ def getDocId(doc_file_name):
  
 def getDesignMatrix(inverted_index, features, documents): 
     design_matrix = numpy.zeros((len(documents), len(features)))
+    docids = [getDocId(d) for d in documents]
     for termIndex in range(len(features)):
         term = features[termIndex]
         docs = inverted_index[term]
         for doc in docs:
-            design_matrix[doc - 1][termIndex] = inverted_index[term][doc] 
+            design_matrix[docids.index(doc)][termIndex] = inverted_index[term][doc] 
     return design_matrix
 
 def getFeatures(inverted_index):
@@ -134,7 +138,7 @@ def indexDocument(document_content, doc_id, inverted_index):
     inverted_index[non_punctuation_count_feature][doc_id] = non_punctuation_count    
     inverted_index[doc_length_feature][doc_id] = text_length
     inverted_index[pronoun_count_feature][doc_id] = pronoun_count
-    print pronoun_count
+#    print pronoun_count
     return inverted_index
 
 if __name__ == '__main__':
