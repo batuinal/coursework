@@ -13,11 +13,12 @@ class Tokenizer(object):
     def __init__(self):
         self.stemmer = stemmer.PorterStemmer()
         self.stopWords = []
+        self.punctuation = ['!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', ']', '^', '_', '`', '{', '|', '}', '~'];
         if os.path.exists('stopWords'):
             self.stopWords = [line.strip() for line in open('stopwords')]
         else:
             self.stopWords = ['a', 'all', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'been', 'but', 'by', 'few', 'from', 'for', 'have', 'he', 'her', 'here', 'him', 'his', 'how', 'i', 'in', 'is', 'it', 'its', 'many', 'me', 'my', 'none', 'of', 'on', 'or', 'our', 'she', 'some', 'the', 'their', 'them', 'there', 'they', 'that', 'this', 'to', 'us', 'was', 'what', 'when', 'where', 'which', 'who', 'why', 'will', 'with', 'you', 'your']
-
+        self.pronouns = ['he', 'she', 'it', 'you', 'yours', 'his', 'hers', 'him', 'her', 'i', 'me', 'we', 'its', 'they', 'them', 'theirs', 'their', 'that', 'which', 'who', 'my'];
     
     def removeSGML(self, text):
         trimmedText = re.sub('<[^>]*>\n*', '', text)
@@ -74,11 +75,26 @@ class Tokenizer(object):
         stemmedTokens = [self.stemmer.stem(item, 0, len(item) - 1) for item in tokens]
         return stemmedTokens
     
+    def getFeatures(self, text):
+        text_length = len(text)
+        punctuation_count = 0
+        for m in self.punctuation:
+            punctuation_count = punctuation_count + text.count(m)
+        white_space_count = text.count(' ')
+        non_punctuation_count = text_length - punctuation_count - white_space_count
+        return text_length, punctuation_count, non_punctuation_count  
+        
     def getTokens(self, text):
         filtered_text = self.removeSGML(text)
         tokens = self.tokenizeText(filtered_text)
-        filtered_tokens = self.removeStopwords(tokens)
-        stemmed_tokens = self.stemWords(filtered_tokens)
-        stemmed_tokens = [x.lower() for x in stemmed_tokens]
+        #filtered_tokens = self.removeStopwords(tokens)
+        #stemmed_tokens = self.stemWords(tokens)
+        stemmed_tokens = [x.lower() for x in tokens]
         return stemmed_tokens
+    
+    def getPronounCount(self, tokens):
+        pronoun_count = 0
+        for m in self.pronouns:
+            pronoun_count = pronoun_count + tokens.count(m)
+        return pronoun_count    
         
