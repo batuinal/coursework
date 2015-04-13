@@ -25,25 +25,30 @@ def main(test_dir, train_dir, test_labels, train_labels):
     train_files, y_train = read_data(train_dir, train_labels)
     test_files, y_test = read_data(test_dir, test_labels)
 
-    features, classifier = train(train_files, y_train)
-    test(test_files, y_test, classifier, features)
-    """
-    skf = StratifiedKFold(y, n_folds=5)
-    # split data into 5 sets of train/test data
+    skf = StratifiedKFold(y_train, n_folds=5)
+
+    accuracies = []
     for train_index, test_index in skf:
         print 'Starting fold'
         # filenames to train on
-        f_train = filenames[train_index]
-        y_train = y[train_index]
+        f_tr = train_files[train_index]
+        y_tr = y_train[train_index]
         
-        f_test = filenames[test_index]
-        y_test = y[test_index]
+        f_te = train_files[test_index]
+        y_te = y_train[test_index]
 
         print 'Training fold'
-        features, classifier = train(f_train, y_train)
+        features, classifier = train(f_tr, y_tr)
         print 'Testing fold'
-        test(f_test, y_test, classifier, features)
-    """
+        accuracies.append(test(f_te, y_te, classifier, features))
+
+    print 'avg xvalidation accuracy: {0}'.format(sum(accuracies)/float(len(accuracies)))
+    
+    features, classifier = train(train_files, y_train)
+    train_accuracy = test(train_files, y_train, classifier, features)
+    print 'training accuracy: {0}'.format(train_accuracy)
+    test_accuracy = test(test_files, y_test, classifier, features)
+    print 'testing accuracy: {0}'.format(test_accuracy)
     
 def read_data(dirname, label_file):
     filenames = []
@@ -55,7 +60,6 @@ def read_data(dirname, label_file):
     return numpy.array(filenames), labels
     
 def train(f_train, y_train):
-    print 'Training'
     global my_tokenizer, mix_label, joke_label
     inverted_index = defaultdict(dict)
     for train_file in f_train:
@@ -83,7 +87,6 @@ def train(f_train, y_train):
     return features, classifier
 
 def test(f_test, y_test, classifier, features):
-    print 'Testing'
     global my_tokenizer, mix_label, joke_label
     y_predicted = []
     for test_file in f_test:
@@ -105,7 +108,7 @@ def test(f_test, y_test, classifier, features):
             y_predicted.append(int(classifier.predict(feature)[0]))
 
     # calc and print accuracy score of the prediction
-    print 'accuracy: {0}'.format(metrics.accuracy_score(y_test, y_predicted))
+    return  metrics.accuracy_score(y_test, y_predicted)
 
 def getDocId(doc_file_name):
     mid = re.sub('^[A-Za-z\-]+', '', os.path.basename(doc_file_name)).lstrip('0')
