@@ -7,18 +7,59 @@ uniquename: nbhutani
 import re
 import stemmer
 import os
+import features
+from lxml.html.clean import Cleaner
 
 class Tokenizer(object):
     
     def __init__(self):
         self.stemmer = stemmer.PorterStemmer()
+        self.cleaner = Cleaner(style=True)
         self.stopWords = []
-        self.punctuation = ['!', '"', '#', '$', '%', '&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '@', '[', ']', '^', '_', '`', '{', '|', '}', '~'];
         if os.path.exists('stopWords'):
             self.stopWords = [line.strip() for line in open('stopwords')]
         else:
-            self.stopWords = ['a', 'all', 'an', 'and', 'any', 'are', 'as', 'at', 'be', 'been', 'but', 'by', 'few', 'from', 'for', 'have', 'he', 'her', 'here', 'him', 'his', 'how', 'i', 'in', 'is', 'it', 'its', 'many', 'me', 'my', 'none', 'of', 'on', 'or', 'our', 'she', 'some', 'the', 'their', 'them', 'there', 'they', 'that', 'this', 'to', 'us', 'was', 'what', 'when', 'where', 'which', 'who', 'why', 'will', 'with', 'you', 'your']
-        self.pronouns = ['he', 'she', 'it', 'you', 'yours', 'his', 'hers', 'him', 'her', 'i', 'me', 'we', 'its', 'they', 'them', 'theirs', 'their', 'that', 'which', 'who', 'my'];
+            self.stopWords = features.stopWords
+            
+    def cleanText(self, text):
+        return self.cleaner.clean_html(text)
+    
+    #percentage of relevant urls in the text
+    def getRelevantURLFrequency(self, text):
+        urls = re.findall(r'[href|HREF]+=[\'"]?([^\'" >]+)', text)
+        urlsCount = len(urls);
+        if urlsCount == 0:
+            return 0
+        relevantRegex = '('+'|'.join(features.relevantURLsPattern)+')'
+        filteredUrls = [m.group(1) for m in (re.search(relevantRegex, l) for l in urls) if m]
+        return len(filteredUrls) * 1.0 / urlsCount
+    
+    #percentage of relevant tags in the text
+    def getRelevantTagCount(self, text):
+        tags = re.findall('<([a-zA-Z][a-zA-Z0-9]*)[^>]*>', text)
+        tagsCount = len(tags)
+        if tagsCount == 0:
+            return 0
+        relevantRegex = '('+'|'.join(features.relevantTags)+')'
+        relevantTags = re.findall('<' + relevantRegex + ".*?>", text);
+        return len(relevantTags) * 1.0 / tagsCount
+    
+    def getTitle(self, text):
+        title = re.findall(r'<title>(.*?)</title>', text.lower())
+        return title
+    
+    def getTokensForTag(self, text, tag):
+        pattern = re.compile('(?<=' + tag+ '>).+(?=</' + tag + ')', re.DOTALL) 
+        fragments = pattern.search(text.lower())
+        if fragments:
+            tagContent = fragments.group()  
+            filtered_text = self.removeSGML(tagContent)
+            tokens = self.tokenizeText(filtered_text)
+            filtered_tokens = self.removeStopwords(tokens)
+            stemmed_tokens = self.stemWords(filtered_tokens)
+            relevantTokens = ([x.lower() for x in stemmed_tokens])
+            return relevantTokens
+        return []
     
     def removeSGML(self, text):
         trimmedText = re.sub('<[^>]*>\n*', '', text)
@@ -75,26 +116,20 @@ class Tokenizer(object):
         stemmedTokens = [self.stemmer.stem(item, 0, len(item) - 1) for item in tokens]
         return stemmedTokens
     
-    def getFeatures(self, text):
-        text_length = len(text)
-        punctuation_count = 0
-        for m in self.punctuation:
-            punctuation_count = punctuation_count + text.count(m)
-        white_space_count = text.count(' ')
-        non_punctuation_count = text_length - punctuation_count - white_space_count
-        return text_length, punctuation_count, non_punctuation_count  
+    def getMetaData(self, text):
+        metadata = {}
+        #metadata[features.docTitle] = self.getTitle(text)
+        metadata[features.documentLength] = len(text)
+        metadata[features.relevantTagsCount] = self.getRelevantTagCount(text)
+        metadata[features.relevantURLsCount] = self.getRelevantURLFrequency(text)
+        return metadata
         
     def getTokens(self, text):
+        text = self.cleanText(text)
         filtered_text = self.removeSGML(text)
         tokens = self.tokenizeText(filtered_text)
-        #filtered_tokens = self.removeStopwords(tokens)
-        #stemmed_tokens = self.stemWords(tokens)
-        stemmed_tokens = [x.lower() for x in tokens]
-        return stemmed_tokens
-    
-    def getPronounCount(self, tokens):
-        pronoun_count = 0
-        for m in self.pronouns:
-            pronoun_count = pronoun_count + tokens.count(m)
-        return pronoun_count    
+        filtered_tokens = self.removeStopwords(tokens)
+        stemmed_tokens = self.stemWords(filtered_tokens)
+        stemmed_tokens = [x.lower() for x in stemmed_tokens]
+        return stemmed_tokens   
         
