@@ -56,7 +56,7 @@ def train(documents, labels):
     global my_tokenizer
     inverted_index = indexDocuments(documents)
     #features = list(inverted_index.keys())
-    feature_list = features.relevantURLsPattern
+    feature_list = features.vocab
     design_matrix = getDesignMatrix(inverted_index, feature_list, documents)
     classifier = LogisticRegression()
     classifier.fit(design_matrix, labels)
