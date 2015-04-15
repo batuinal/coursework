@@ -57,6 +57,7 @@ def train(documents, labels):
     inverted_index = indexDocuments(documents)
     #features = list(inverted_index.keys())
     feature_list = features.vocab
+    feature_list.extend(features.metadataKeys)
     design_matrix = getDesignMatrix(inverted_index, feature_list, documents)
     classifier = LogisticRegression()
     classifier.fit(design_matrix, labels)

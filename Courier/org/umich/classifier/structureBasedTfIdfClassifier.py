@@ -91,7 +91,7 @@ def test(documents, labels, classifier, features, inverseDocumentFrequencies):
 
 def getFeatures(inverted_index):
     features_list = []
-    threshold = 20
+    threshold = 10
     for term in inverted_index.keys():
         document_frequency = len(inverted_index[term])
         if document_frequency > threshold:

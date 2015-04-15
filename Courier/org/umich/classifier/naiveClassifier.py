@@ -22,21 +22,23 @@ def main(test_dir, train_dir, test_labels, train_labels):
     features, classifier = train(train_files, y_train)
     test(test_files, y_test, classifier, features)
     """
-    skf = StratifiedKFold(y, n_folds=5)
+    skf = StratifiedKFold(y_train, n_folds=5)
     # split data into 5 sets of train/test data
+    accuracies = []
     for train_index, test_index in skf:
         print 'Starting fold'
         # filenames to train on
-        f_train = filenames[train_index]
-        y_train = y[train_index]
+        f_train = train_files[train_index]
+        y_train = y_train[train_index]
 
-        f_test = filenames[test_index]
-        y_test = y[test_index]
+        f_test = train_files[test_index]
+        y_test = y_train[test_index]
 
         print 'Training fold'
         features, classifier = train(f_train, y_train)
         print 'Testing fold'
-        test(f_test, y_test, classifier, features)
+        accuracies.append(test(f_test, y_test, classifier, features))
+    print 'avg xvalidation accuracy: {0}'.format(sum(accuracies)/float(len(accuracies)))
     """
 
 def read_data(dirname, label_file):
