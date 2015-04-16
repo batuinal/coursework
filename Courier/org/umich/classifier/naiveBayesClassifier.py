@@ -82,8 +82,9 @@ def preprocess_data(documents):
 def train(X, y):
     print 'Training'
 #    global my_tokenizer
+    classifier = MultinomialNB()#BernoulliNB() #LogisticRegression()
     classifier.fit(X, y)
-    return features, classifier
+    return classifier
 
 def test(documents, labels, classifier, features):
     print 'Testing'
