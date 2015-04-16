@@ -6,6 +6,7 @@ uniquename: nbhutani
 from collections import defaultdict
 from sklearn.linear_model import LogisticRegression
 from sklearn.cross_validation import StratifiedKFold
+from sklearn.feature_selection import f_regression, SelectPercentile
 from sklearn import metrics
 import sys
 import os
@@ -19,9 +20,30 @@ def main(test_dir, train_dir, test_labels, train_labels):
     train_files, y_train = read_data(train_dir, train_labels)
     test_files, y_test = read_data(test_dir, test_labels)
 
-    features, classifier = train(train_files, y_train)
-    test(test_files, y_test, classifier, features)
+    X_train, inverted_index, features = preprocess_data(train_files)
     """
+    for p in range(10):
+        print 'Recursive iteration {0}'.format(p)
+        feat_sel = SelectPercentile(f_regression, 90)
+        X_train = feat_sel.fit_transform(X_train, y_train)
+        # indices for which features are going to be selected
+        f_inds = feat_sel.get_support(indices=True)
+        features = [features[d] for d in f_inds]
+        classifier = train(X_train, y_train)
+        print 'Using {0} features'.format(len(features))
+        test(test_files, y_test, classifier, features)
+    """
+    for p in range(10):
+        percentile = 100-p*10
+        print 'Selecting {0}% of features'.format(percentile)
+        feat_sel = SelectPercentile(f_regression, percentile)
+        X_sel = feat_sel.fit_transform(X_train, y_train)
+        # indices for which features are going to be selected
+        f_inds = feat_sel.get_support(indices=True)
+        print 'Using {0} features'.format(len(f_inds))
+        classifier = train(X_sel, y_train)
+        test(test_files, y_test, classifier, [features[d] for d in f_inds])
+"""
     skf = StratifiedKFold(y_train, n_folds=5)
     # split data into 5 sets of train/test data
     accuracies = []
@@ -49,15 +71,19 @@ def read_data(dirname, label_file):
     labels = numpy.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == '1' else -1})
     return numpy.array(filenames), labels
 
-def train(documents, labels):
-    print 'Training'
-    global my_tokenizer
-    inverted_index = indexDocuments(documents)
+def preprocess_data(documents):
+    print 'Preprocessing'
+    inverted_index= indexDocuments(documents)
     features = getFeatures(inverted_index)#list(inverted_index.keys())
     design_matrix = getDesignMatrix(inverted_index, features, documents)
+    return design_matrix, inverted_index, features
+
+def train(X, y):
+    print 'Training'
+#    global my_tokenizer
     classifier = LogisticRegression()
-    classifier.fit(design_matrix, labels)
-    return features, classifier
+    classifier.fit(X, y)
+    return classifier
 
 def test(documents, labels, classifier, features):
     print 'Testing'

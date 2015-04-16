@@ -47,7 +47,7 @@ def read_data(dirname, label_file):
     filenames = sorted(filenames)
     labels = numpy.genfromtxt(fname=label_file, skip_header=1, delimiter=',', usecols=(1), converters={1:lambda s: 1 if s == '1' else -1})
     return numpy.array(filenames), labels
-    
+
 def train(documents, labels):
     print 'Training'
     global my_tokenizer
