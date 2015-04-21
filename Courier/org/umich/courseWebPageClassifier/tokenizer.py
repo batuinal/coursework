@@ -8,7 +8,6 @@ import re
 import stemmer
 import os
 import features
-import lxml.html
 from lxml.html.clean import Cleaner
 
 class Tokenizer(object):
@@ -21,11 +20,17 @@ class Tokenizer(object):
             self.stopWords = [line.strip() for line in open('stopwords')]
         else:
             self.stopWords = features.stopWords
-            
+
+    '''
+    Remove css, header, script tags from a html document
+    '''        
     def cleanText(self, text):
         return self.cleaner.clean_html(text)
     
-    #percentage of relevant urls in the text
+    '''
+    Relative no. of URLs on the page that are relevant
+    A relevant URL is one which contains a keyword as specific in features
+    '''
     def getRelevantURLFrequency(self, text):
         urls = re.findall(r'[href|HREF]+=[\'"]?([^\'" >]+)', text)
         urlsCount = len(urls);
@@ -35,7 +40,10 @@ class Tokenizer(object):
         filteredUrls = [m.group(1) for m in (re.search(relevantRegex, l) for l in urls) if m]
         return len(filteredUrls) * 1.0 / urlsCount
     
-    #percentage of relevant tags in the text
+    '''
+    Relative no. of tags that are relevant
+    [a, ul, li, h1, h2, h3] are relevant tags
+    '''
     def getRelevantTagCount(self, text):
         tags = re.findall('<([a-zA-Z][a-zA-Z0-9]*)[^>]*>', text)
         tagsCount = len(tags)
@@ -45,60 +53,46 @@ class Tokenizer(object):
         relevantTags = re.findall('<' + relevantRegex + ".*?>", text);
         return len(relevantTags) * 1.0 / tagsCount
     
+    '''
+    Title of a html document
+    '''
     def getTitle(self, text):
         title = re.findall(r'<title>(.*?)</title>', text.lower())
         return title
     
+    '''
+    Number of numeral characters in a text
+    '''
     def getNumeralCharacterCount(self, text):
         text = self.cleanText(text);
-        return len([digit for digit in text if digit.isdigit()])
-    
-    def getAnchorTagCount(self, text):
-        tags = re.findall('<a(?=\s|>)', text)
-        return len(tags)
+        return len([digit for digit in text if digit.isdigit()])       
 
-    def getListTagCount(self, text):
-        tags = re.findall('<li>', text)
-        return len(tags)
-    
-    def getParagraphTagCount(self, text):
-        tags = re.findall('<p>', text)
-        return len(tags)
-    
-    def getHeaderTagCount(self, text):
-        tags = re.findall('<h1>|<h2>|<h3>', text)
-        return len(tags)
-            
-#     def getTokensForTag(self, text, tag):
-#         pattern = re.compile('(?<=' + tag+ '>).+(?=</' + tag + ')', re.DOTALL) 
-#         fragments = pattern.search(text.lower())
-#         if fragments:
-#             tagContent = fragments.group()  
-#             filtered_text = self.removeSGML(tagContent)
-#             tokens = self.tokenizeText(filtered_text)
-#             filtered_tokens = self.removeStopwords(tokens)
-#             stemmed_tokens = self.stemWords(filtered_tokens)
-#             relevantTokens = ([x.lower() for x in stemmed_tokens])
-#             return relevantTokens
-#         return []
-
+    '''
+    Extracts tokens from a specific tag in the HTML document
+    '''
     def getTokensForTag(self, text, tag):
-        html_element = lxml.html.fromstring(text)
-        fragments = html_element.xpath('//' + tag + '//' + text())
-        tagContent = ' '.join(fragments)
         pattern = re.compile('(?<=' + tag+ '>).+(?=</' + tag + ')', re.DOTALL) 
         fragments = pattern.search(text.lower())
-        filtered_text = self.removeSGML(tagContent)
-        tokens = self.tokenizeText(filtered_text)
-        filtered_tokens = self.removeStopwords(tokens)
-        stemmed_tokens = self.stemWords(filtered_tokens)
-        relevantTokens = ([x.lower() for x in stemmed_tokens])
-        return relevantTokens
+        if fragments:
+            tagContent = fragments.group()  
+            filtered_text = self.removeSGML(tagContent)
+            tokens = self.tokenizeText(filtered_text)
+            filtered_tokens = self.removeStopwords(tokens)
+            stemmed_tokens = self.stemWords(filtered_tokens)
+            relevantTokens = ([x.lower() for x in stemmed_tokens])
+            return relevantTokens
+        return []
     
+    '''
+    Removes SGML Tags
+    '''
     def removeSGML(self, text):
         trimmedText = re.sub('<[^>]*>\n*', '', text)
         return trimmedText
     
+    '''
+    Splits text into sentences
+    '''
     def getSentences(self, text):
         endOfLine = re.compile("([\.\?\!\:\;][\'\"]?[\s\n]+[\'\"]?\w)")
         newLine = re.compile("[\n\s]+")
@@ -112,6 +106,9 @@ class Tokenizer(object):
                 sentences[-1] += tokens[idx]
         return sentences
     
+    '''
+    The tokenizer 
+    '''
     def tokenizeText(self, text):
         sentences = self.getSentences(text)
         tokens = []
@@ -142,34 +139,39 @@ class Tokenizer(object):
                     tokens.append(token.lower())
         return tokens
     
+    '''
+    Removes stop words
+    '''
     def removeStopwords(self, tokens):
         filteredTokens = [item for item in tokens if item.lower() not in self.stopWords]
         return filteredTokens
 
+    '''
+    Stemming
+    '''
     def stemWords(self, tokens):
         stemmedTokens = [self.stemmer.stem(item, 0, len(item) - 1) for item in tokens]
         return stemmedTokens
     
+    '''
+    Special features designed from metadata information
+    '''
     def getMetaData(self, text):
         metadata = {}
-        #metadata[features.docTitle] = self.getTitle(text)
         metadata[features.documentLength] = len(text)
         metadata[features.relevantTagsCount] = self.getRelevantTagCount(text)
         metadata[features.relevantURLsCount] = self.getRelevantURLFrequency(text)
         metadata[features.numericCharacterCount] = self.getNumeralCharacterCount(text)
-        metadata[features.anchorCount] = self.getAnchorTagCount(text)
-        metadata[features.listCount] = self.getListTagCount(text)
-        metadata[features.headerCount] = self.getHeaderTagCount(text)
-        metadata[features.paragraphCount] = self.getParagraphTagCount(text)
         return metadata
-        
+     
+    '''
+    Given a html document, cleans the document, removes tags, tokenizes and removes stop words
+    '''    
     def getTokens(self, text):
         text = self.cleanText(text)
         filtered_text = self.removeSGML(text)
         tokens = self.tokenizeText(filtered_text)
-        filtered_tokens = self.removeStopwords(tokens)
-        stemmed_tokens = filtered_tokens
-        #stemmed_tokens = self.stemWords(filtered_tokens)
-        stemmed_tokens = [x.lower() for x in stemmed_tokens]
-        return stemmed_tokens   
+        tokens = self.removeStopwords(tokens)
+        tokens = [x.lower() for x in tokens]
+        return tokens   
         
