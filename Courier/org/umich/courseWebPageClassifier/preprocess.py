@@ -39,7 +39,7 @@ class Preprocess(object):
         for data_file in documents:
             with open(data_file) as f:
                 docId = self.getDocId(data_file)
-                doc_content = f.read().decode('string-escape').decode("utf-8")
+                doc_content = f.read()
                 self.indexDocument(doc_content, docId, inverted_index, include_metadata)  
         return inverted_index
     
@@ -51,7 +51,7 @@ class Preprocess(object):
         for data_file in documents:
             with open(data_file) as f:
                 docId = self.getDocId(data_file)
-                doc_content = f.read().decode('string-escape').decode("utf-8")    
+                doc_content = f.read()
                 for tag in tags.keys():
                     self.indexDocumentForTag(doc_content, docId, inverted_index, tag, tags[tag])
         return inverted_index           
